@@ -1,0 +1,141 @@
+<html>
+<head>
+<style>
+.btn {
+  background-color: inherit;
+  padding: 14px 28px;
+  font-size: 16px;
+}
+.btn:hover {
+  background: #eee;
+}
+.slider-container {
+  margin-top:30 px;
+}
+.slider {
+  width: 300 px;
+}
+</style>
+</head>
+<body>
+<button class="btn" onclick="ledOn()">LED On</button>
+<button class="btn" onclick="ledOff()">LED Off</button>
+<button class="btn" onclick="fast()">FAST FAST FAST</button>
+<button class="btn" onclick="slow()">SLOWWWWWWWW</button>
+<br>
+LED STATE: <span id="state">OFF</span>
+
+<div class="slider-container">
+  <p>Control (auto-reset): <span id="sliderVal">50</span></p>
+  <input type="range" id="controlSlider" class="slider" min="-255" max="255" value="0">
+</div>
+
+<div class="slider-container">
+  <p>Control 2 (auto-reset): <span id="sliderVal2">0</span></p>
+  <input type="range" id="controlSlider2" class="slider" min="-255" max="255" value="0">
+</div>
+
+<script>
+var xhttp = new XMLHttpRequest();
+xhttp.onreadystatechange = function() {
+  if (this.readyState == 4 && this.status == 200) {
+    document.getElementById("state").innerHTML = this.responseText;
+  }
+};
+
+function ledOn() {
+  xhttp.open("GET", "http://192.168.0.13/on");
+  xhttp.send();
+}
+
+function ledOff() {
+  xhttp.open("GET", "http://192.168.0.13/off");
+  xhttp.send();
+}
+
+function fast() {
+  xhttp.open("GET", "http://192.168.0.13/fast");
+  xhttp.send();
+}
+
+function slow() {
+  xhttp.open("GET", "http://192.168.0.13/slow");
+  xhttp.send();
+}
+
+document.addEventListener("keydown", function(event) {
+  var key = event.key.toLowerCase();
+  if(key == "w"){
+    xhttp.open("GET", "http://192.168.0.13/f", true);
+    xhttp.send();
+  }
+  if(key == "a"){
+    xhttp.open("GET", "http://192.168.0.13/l", true);
+    xhttp.send();
+  }
+  if(key == "d"){
+    xhttp.open("GET", "http://192.168.0.13/r", true);
+    xhttp.send();
+  }
+  if(key == "s"){
+    xhttp.open("GET", "http://192.168.0.13/b", true);
+    xhttp.send();
+  }
+  if(key == " "){
+    xhttp.open("GET", "http://192.168.0.13/s", true);
+    xhttp.send();
+  }
+});
+
+const slider = document.getElementById("controlSlider");
+const sliderVal = document.getElementById("sliderVal");
+const resetVal = 0;
+
+slider.addEventListener("input", () => {
+  sendSliderValue(slider.value);
+});
+
+slider.addEventListener("mouseup", () => {
+  resetSlider();
+});
+function sendSliderValue(value) {
+  // Send the slider value to the server
+  xhttp.open("GET", `http://192.168.0.13/slider?val=${value}`, true);
+  xhttp.send();
+}
+
+function resetSlider() {
+  slider.value = resetVal;
+  sliderVal.textContent = resetVal;
+  sendSliderValue(0);
+}
+
+//second slider
+const slider2 = document.getElementById("controlSlider2");
+const sliderVal2 = document.getElementById("sliderVal2");
+const resetVal2 = 0;
+
+slider2.addEventListener("input", () => {
+  sliderVal2.textContent = slider2.value;
+  sendSlider2Value(slider2.value);
+});
+
+slider2.addEventListener("mouseup", () => {
+  resetSlider2();
+});
+
+function sendSlider2Value(value) {
+  xhttp.open("GET", `http://192.168.0.13/slider2?val=${value}`, true);
+  xhttp.send();
+}
+
+function resetSlider2() {
+  slider2.value = resetVal2;
+  sliderVal2.textContent = resetVal2;
+  sendSlider2Value(0);
+}
+
+</script>
+
+</body>
+</html>
