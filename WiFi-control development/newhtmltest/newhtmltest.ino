@@ -64,10 +64,6 @@ void slow_speed(){
 
 
 //Return the web page
-void handleRoot()
-{
-  server.send(200, F("text/html"), webpage);
-}
 
 void stop(){
   digitalWrite(9,LOW);
@@ -81,7 +77,7 @@ void forward(){
   analogWrite(9,speed);
   digitalWrite(11,HIGH);
   analogWrite(12,speed);
-  delay(40);
+  delay(20);
   analogWrite(9,0);
   analogWrite(12,0);
   server.send(200, F("text/plain"), F("F"));
@@ -92,7 +88,7 @@ void backwards(){
   analogWrite(9,speed);
   digitalWrite(11,LOW);
   analogWrite(12,speed);
-  delay(40);
+  delay(20);
   analogWrite(9,0);
   analogWrite(12,0);
   server.send(200, F("text/plain"), F("B"));
@@ -103,7 +99,7 @@ void right(){
   analogWrite(9,speed);
   digitalWrite(11,HIGH);
   analogWrite(12,speed);
-  delay(40);
+  delay(20);
   analogWrite(9,0);
   analogWrite(12,0);
   server.send(200, F("text/plain"), F("R"));
@@ -114,7 +110,7 @@ void left(){
   analogWrite(9,speed);
   digitalWrite(11,LOW);
   analogWrite(12,speed);
-  delay(40);
+  delay(20);
   analogWrite(9,0);
   analogWrite(12,0);
   server.send(200, F("text/plain"), F("L"));
@@ -162,7 +158,7 @@ void setup() {
   pinMode(12, OUTPUT);
   pinMode(9, OUTPUT);
 
-  int speed = 255;
+  speed = 255;
 
 
   stop();
@@ -200,7 +196,6 @@ void setup() {
   }
 
   //Register the callbacks to respond to HTTP requests
-  server.on("/", handleRoot);
   server.on("/on", ledON);
   server.on("/off", ledOFF);
   server.on("/f", forward);
@@ -210,6 +205,12 @@ void setup() {
   server.on("/s", stop);
   server.on("/fast", top_speed);
   server.on("/slow", slow_speed);
+  server.on("/slider", HTTP_GET, [](){
+  if (server.hasArg("val")) {
+    String val = server.arg("val");
+    speed = val.toInt();
+  }
+});
 
   server.onNotFound(handleNotFound);
   

@@ -1,0 +1,200 @@
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+<style>
+
+.btn {
+  background-color: inherit;
+  padding: 20px 28px;
+  font-size: 16px;
+
+
+  transform: rotate(90deg); 
+  margin: 80px 0px 15px -10px; /*t,r,b,l */
+}
+.btn:hover {
+  background: #eee;
+}
+.slider-container {
+  margin-top:30 px;
+  width: 65%; /* Ensure the container allows full width */
+  overflow: visible; /* Allow content to overflow if needed */
+  display: block; /* Ensure it's block-level */
+}
+.slider {
+  width: 100%;  /* Ensure it takes up full width of the container */
+  max-width: 600px;  /* Set a max-width to control the maximum length */
+}
+
+.rotated-text-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Align to left after rotation */
+  margin: 15px 0px 80px 285px; /*t,r,b,l */
+  transform: rotate(90deg);
+  transform-origin: left top;
+}
+
+.rotated-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px; /* Space between NAME and SPECIES */
+}
+
+.rotated-label,
+.rotated-value {
+  white-space: nowrap;
+  font-size: 16px;
+}
+
+
+</style>
+</head>
+<body>
+
+
+
+<div class="slider-container">
+  <p>Left Motor: <span id="sliderVal">0</span></p>
+  <input type="range" id="controlSlider" class="slider" min="-255" max="255" value="0">
+</div>
+
+<button class="btn" onclick="getName()"> Get name </button>
+<button class="btn" onclick="getSpecies()">Get species</button>
+
+<div class="rotated-text-container">
+  <div class="rotated-row">
+    <span class="rotated-label">NAME:</span>
+    <span id="name" class="rotated-value">unknown</span>
+  </div>
+  <div class="rotated-row">
+    <span class="rotated-label">SPECIES:</span>
+    <span id="species" class="rotated-value">unknown</span>
+  </div>
+</div>
+
+<button class="btn" onclick="ledOn()">LED On</button>
+<button class="btn" onclick="ledOff()">LED Off</button>
+
+<div class="slider-container">
+  <p>Right Motor: <span id="sliderVal2">0</span></p>
+  <input type="range" id="controlSlider2" class="slider" min="-255" max="255" value="0">
+</div>
+
+
+
+
+<script>
+var xhttp = new XMLHttpRequest();
+xhttp.onreadystatechange = function() {
+  if (this.readyState == 4 && this.status == 200) {
+    document.getElementById("state").innerHTML = this.responseText;
+  }
+};
+
+var xhttpNAME = new XMLHttpRequest();
+xhttpNAME.onreadystatechange = function() {
+  if (this.readyState == 4) {  // Request is completed
+    if (this.status == 200) {
+      console.log("Received name:", this.responseText);  // Log the response
+      document.getElementById("name").innerHTML = this.responseText;
+    } else {
+      console.error("Error getting name, status: " + this.status);  // Log error if status is not 200
+    }
+  }
+};
+
+// Function to send the GET request for "getName"
+function getName() {
+  console.log("Sending GET request for name...");
+  xhttpNAME.open("GET", "http://192.168.0.13/getName", true);  // Adjust the URL here if needed
+  xhttpNAME.send();
+}
+
+// Create the XMLHttpRequest for getting the species
+var xhttpSPECIES = new XMLHttpRequest();
+xhttpSPECIES.onreadystatechange = function() {
+  if (this.readyState == 4) {  // Request is completed
+    if (this.status == 200) {
+      console.log("Received species:", this.responseText);  // Log the response
+      document.getElementById("species").innerHTML = this.responseText;
+    } else {
+      console.error("Error getting species, status: " + this.status);  // Log error if status is not 200
+    }
+  }
+};
+
+// Function to send the GET request for "getSpecies"
+function getSpecies() {
+  console.log("Sending GET request for species...");
+  xhttpSPECIES.open("GET", "http://192.168.0.13/getSpecies", true);  // Adjust the URL here if needed
+  xhttpSPECIES.send();
+}
+
+function ledOn() {
+  xhttp.open("GET", "http://192.168.0.13/on");
+  xhttp.send();
+}
+
+function ledOff() {
+  xhttp.open("GET", "http://192.168.0.13/off");
+  xhttp.send();
+}
+
+
+const slider = document.getElementById("controlSlider");
+const sliderVal = document.getElementById("sliderVal");
+const resetVal = 0;
+
+slider.addEventListener("touchmove", () => {
+  sliderVal.textContent = slider.value;
+  sendSliderValue(slider.value);
+});
+
+
+slider.addEventListener("touchend", () => {
+  resetSlider();
+});
+function sendSliderValue(value) {
+  // Send the slider value to the server
+  xhttp.open("GET", `http://192.168.0.13/slider?val=${value}`, true);
+  xhttp.send();
+}
+
+function resetSlider() {
+  slider.value = resetVal;
+  sliderVal.textContent = resetVal;
+  sendSliderValue(0);
+}
+
+//second slider
+const slider2 = document.getElementById("controlSlider2");
+const sliderVal2 = document.getElementById("sliderVal2");
+const resetVal2 = 0;
+
+slider2.addEventListener("touchmove", () => {
+  sliderVal2.textContent = slider2.value;
+  sendSlider2Value(slider2.value);
+});
+
+
+slider2.addEventListener("touchend", () => {
+  resetSlider2();
+});
+
+function sendSlider2Value(value) {
+  xhttp.open("GET", `http://192.168.0.13/slider2?val=${value}`, true);
+  xhttp.send();
+}
+
+function resetSlider2() {
+  slider2.value = resetVal2;
+  sliderVal2.textContent = resetVal2;
+  sendSlider2Value(0);
+}
+
+
+</script>
+
+</body>
+</html>

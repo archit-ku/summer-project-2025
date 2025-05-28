@@ -50,6 +50,7 @@ const int groupNumber = 12; // Set your group number to make the IP address cons
 
 WiFiWebServer server(80);
 
+int lspeed, rspeed;
 
 
 
@@ -63,20 +64,12 @@ void stop(){
 }
 
 //move forwards
-
-void getName()
-{
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  String name = "b";
-  server.send(200, F("text/plain"), name);
+void updatespeed(){
+  analogWrite(9, lspeed);
+  analogWrite(12,rspeed);
 }
 
-void getSpecies()
-{
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  String species = "pig";
-  server.send(200, F("text/plain"), species);
-}
+
 
 
 
@@ -165,22 +158,22 @@ void setup() {
 
   server.on("/s", stop);
 
-  server.on(F("/getName"), getName);
-  server.on(F("/getSpecies"), getSpecies);
   server.on("/slider", HTTP_GET, [](){
     if (server.hasArg("val")) {
       String val = server.arg("val");
       int intval = val.toInt();
-      if(intval<0){
-        digitalWrite(11,LOW);
-        analogWrite(12,abs(intval));
+      lspeed = intval;
+      rspeed = intval;
+      analogWrite(9, abs(lspeed));
+      analogWrite(12, abs(rspeed));
+      if(intval < 0){
+        digitalWrite(8, LOW);
+        digitalWrite(11, LOW);
       }
       else{
-       digitalWrite(11,HIGH);
-       analogWrite(12, intval);
+        digitalWrite(8, HIGH);
+        digitalWrite(11, HIGH);
       }
-
-      
     }
   });
 
@@ -188,14 +181,7 @@ void setup() {
     if (server.hasArg("val")) {
       String val = server.arg("val");
       int intval = val.toInt();
-      if(intval<0){
-        digitalWrite(8,LOW);
-        analogWrite(9,abs(intval));
-      }
-      else{
-       digitalWrite(8,HIGH);
-       analogWrite(9, intval);
-      }
+
 
     }
   });

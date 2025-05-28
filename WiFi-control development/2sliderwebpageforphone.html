@@ -1,5 +1,6 @@
 <html>
 <head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 .btn {
   background-color: inherit;
@@ -28,6 +29,11 @@ LED STATE: <span id="state">OFF</span>
 <div class="slider-container">
   <p>Control (auto-reset): <span id="sliderVal">50</span></p>
   <input type="range" id="controlSlider" class="slider" min="-255" max="255" value="0">
+</div>
+
+<div class="slider-container">
+  <p>Control 2 (auto-reset): <span id="sliderVal2">0</span></p>
+  <input type="range" id="controlSlider2" class="slider" min="-255" max="255" value="0">
 </div>
 
 <script>
@@ -105,6 +111,30 @@ function resetSlider() {
   sendSliderValue(0);
 }
 
+//second slider
+const slider2 = document.getElementById("controlSlider2");
+const sliderVal2 = document.getElementById("sliderVal2");
+const resetVal2 = 0;
+
+slider2.addEventListener("input", () => {
+  sliderVal2.textContent = slider2.value;
+  sendSlider2Value(slider2.value);
+});
+
+slider2.addEventListener("mouseup", () => {
+  resetSlider2();
+});
+
+function sendSlider2Value(value) {
+  xhttp.open("GET", `http://192.168.0.13/slider2?val=${value}`, true);
+  xhttp.send();
+}
+
+function resetSlider2() {
+  slider2.value = resetVal2;
+  sliderVal2.textContent = resetVal2;
+  sendSlider2Value(0);
+}
 
 </script>
 
