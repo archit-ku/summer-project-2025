@@ -42,11 +42,15 @@
 #define USE_WIFI101           true
 #include <WiFiWebServer.h>
 
+#include <Arduino.h>
+
+
 const char ssid[] = "EEERover";
 const char pass[] = "exhibition";
 const int groupNumber = 12; // Set your group number to make the IP address constant - only do this on the EEERover network
 
 String species;
+String name;
 
 // Pins
 const byte radio_ir_Pin = 2;      
@@ -62,6 +66,8 @@ volatile bool newPeriod_radio = false;
 volatile unsigned long lastRiseTime_infrared = 0;
 volatile unsigned long periodMicros_infrared = 0;
 volatile bool newPeriod_infrared = false;
+
+unsigned long lastReconnectAttempt = 0;
 
 // Frequency results
 int frequency_radio = 0;
@@ -166,7 +172,7 @@ void readMagneticSensor() {
 // --- Determine species based on results from sensors ---
 
 void determine_species() {
-  readMagneticSensor(); //works
+  readMagneticSensor();
   calculateRadioFrequency();
   calculateInfraredFrequency();
   String error = magnet + frequency_radio + frequency_infrared;
@@ -198,6 +204,53 @@ void determine_species() {
   }
 }
 
+String readsingleName(){
+  String name;
+  char VA0;
+  //in loop, wait for #
+  while(true){
+    VA0 = Serial1.read();
+
+    if(VA0 == '#'){
+      break;
+    }
+
+    //read char, add to string name
+    VA0 = Serial1.read();
+    while(VA0 != '#'){
+      name += VA0;
+    }
+
+  }
+  //if char #, return name
+  return name;
+}
+
+void findName(){
+  String names[75];
+  for(int i = 0; i < 75; i++){
+    names[i] = readsingleName();
+  }
+
+  String modeName = "";
+  int maxCount = 0;
+
+  for (int i = 0; i < 75; i++) {
+    int count = 1;
+    for (int j = i + 1; j < 75; j++) {
+      if (names[i] == names[j]) {
+        count++;
+      }
+    }
+
+    if (count > maxCount) {
+      maxCount = count;
+      modeName = names[i];
+    }
+  }
+  name = modeName;
+}
+
 
 WiFiWebServer server(80);
 
@@ -219,71 +272,71 @@ void root() {
   server.send(200);
 
   // HTML START
-  server.sendContent("<!DOCTYPE html><html><head>");
-  server.sendContent("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0\">");
-  server.sendContent("<style>");
-  server.sendContent(".btn {background-color: inherit; padding: 20px 28px; font-size: 16px; transform: rotate(90deg); margin: 80px 0px 15px -10px;}");
-  server.sendContent(".btn:hover {background: #eee;}");
-  server.sendContent(".slider-container {margin-top:30px; width: 65%; overflow: visible; display: block;}");
-  server.sendContent(".slider {width: 100%; max-width: 600px;}");
-  server.sendContent(".rotated-text-container {display: flex; flex-direction: column; align-items: flex-start; margin: 15px 0px 80px 285px; transform: rotate(90deg); transform-origin: left top;}");
-  server.sendContent(".rotated-row {display: flex; gap: 10px; margin-bottom: 10px;}");
-  server.sendContent(".rotated-label, .rotated-value {white-space: nowrap; font-size: 16px;}");
-  server.sendContent("</style></head><body>");
+  server.sendContent(F("<!DOCTYPE html><html><head>"));
+  server.sendContent(F("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0\">"));
+  server.sendContent(F("<style>"));
+  server.sendContent(F(".btn {background-color: inherit; padding: 20px 28px; font-size: 16px; transform: rotate(90deg); margin: 80px 0px 15px -10px;}"));
+  server.sendContent(F(".btn:hover {background: #eee;}"));
+  server.sendContent(F(".slider-container {margin-top:30px; width: 65%; overflow: visible; display: block;}"));
+  server.sendContent(F(".slider {width: 100%; max-width: 600px;}"));
+  server.sendContent(F(".rotated-text-container {display: flex; flex-direction: column; align-items: flex-start; margin: 15px 0px 80px 285px; transform: rotate(90deg); transform-origin: left top;}"));
+  server.sendContent(F(".rotated-row {display: flex; gap: 10px; margin-bottom: 10px;}"));
+  server.sendContent(F(".rotated-label, .rotated-value {white-space: nowrap; font-size: 16px;}"));
+  server.sendContent(F("</style></head><body>"));
 
-  server.sendContent("<div class=\"slider-container\"><p>Left Motor: <span id=\"sliderVal\">0</span></p>");
-  server.sendContent("<input type=\"range\" id=\"controlSlider\" class=\"slider\" min=\"-255\" max=\"255\" value=\"0\"></div>");
+  server.sendContent(F("<div class=\"slider-container\"><p>Left Motor: <span id=\"sliderVal\">0</span></p>"));
+  server.sendContent(F("<input type=\"range\" id=\"controlSlider\" class=\"slider\" min=\"-255\" max=\"255\" value=\"0\"></div>"));
 
-  server.sendContent("<button class=\"btn\" onclick=\"getName()\"> Get name </button>");
-  server.sendContent("<button class=\"btn\" onclick=\"getSpecies()\">Get species</button>");
+  server.sendContent(F("<button class=\"btn\" onclick=\"getName()\"> Get name </button>"));
+  server.sendContent(F("<button class=\"btn\" onclick=\"getSpecies()\">Get species</button>"));
 
-  server.sendContent("<div class=\"rotated-text-container\">");
-  server.sendContent("<div class=\"rotated-row\"><span class=\"rotated-label\">NAME:</span><span id=\"name\" class=\"rotated-value\">unknown</span></div>");
-  server.sendContent("<div class=\"rotated-row\"><span class=\"rotated-label\">SPECIES:</span><span id=\"species\" class=\"rotated-value\">unknown</span></div></div>");
+  server.sendContent(F("<div class=\"rotated-text-container\">"));
+  server.sendContent(F("<div class=\"rotated-row\"><span class=\"rotated-label\">NAME:</span><span id=\"name\" class=\"rotated-value\">unknown</span></div>"));
+  server.sendContent(F("<div class=\"rotated-row\"><span class=\"rotated-label\">SPECIES:</span><span id=\"species\" class=\"rotated-value\">unknown</span></div></div>"));
 
-  server.sendContent("<button class=\"btn\" onclick=\"ledOn()\">LED On</button>");
-  server.sendContent("<button class=\"btn\" onclick=\"ledOff()\">LED Off</button>");
+  server.sendContent(F("<button class=\"btn\" onclick=\"ledOn()\">LED On</button>"));
+  server.sendContent(F("<button class=\"btn\" onclick=\"ledOff()\">LED Off</button>"));
 
-  server.sendContent("<div class=\"slider-container\"><p>Right Motor: <span id=\"sliderVal2\">0</span></p>");
-  server.sendContent("<input type=\"range\" id=\"controlSlider2\" class=\"slider\" min=\"-255\" max=\"255\" value=\"0\"></div>");
+  server.sendContent(F("<div class=\"slider-container\"><p>Right Motor: <span id=\"sliderVal2\">0</span></p>"));
+  server.sendContent(F("<input type=\"range\" id=\"controlSlider2\" class=\"slider\" min=\"-255\" max=\"255\" value=\"0\"></div>"));
 
-  server.sendContent("<script>");
-  server.sendContent("var xhttp = new XMLHttpRequest();");
-  server.sendContent("xhttp.onreadystatechange = function() {if (this.readyState == 4 && this.status == 200) {document.getElementById(\"state\").innerHTML = this.responseText;}};");
+  server.sendContent(F("<script>"));
+  server.sendContent(F("var xhttp = new XMLHttpRequest();"));
+  server.sendContent(F("xhttp.onreadystatechange = function() {if (this.readyState == 4 && this.status == 200) {document.getElementById(\"state\").innerHTML = this.responseText;}};"));
 
-  server.sendContent("var xhttpNAME = new XMLHttpRequest();");
-  server.sendContent("xhttpNAME.onreadystatechange = function() {if (this.readyState == 4 && this.status == 200) {document.getElementById(\"name\").innerHTML = this.responseText;}};");
-  server.sendContent("function getName() {xhttpNAME.open(\"GET\", \"/getName\", true); xhttpNAME.send();}");
+  server.sendContent(F("var xhttpNAME = new XMLHttpRequest();"));
+  server.sendContent(F("xhttpNAME.onreadystatechange = function() {if (this.readyState == 4 && this.status == 200) {document.getElementById(\"name\").innerHTML = this.responseText;}};"));
+  server.sendContent(F("function getName() {xhttpNAME.open(\"GET\", \"/getName\", true); xhttpNAME.send();}"));
 
-  server.sendContent("var xhttpSPECIES = new XMLHttpRequest();");
-  server.sendContent("xhttpSPECIES.onreadystatechange = function() {if (this.readyState == 4 && this.status == 200) {document.getElementById(\"species\").innerHTML = this.responseText;}};");
-  server.sendContent("function getSpecies() {xhttpSPECIES.open(\"GET\", \"/getSpecies\", true); xhttpSPECIES.send();}");
+  server.sendContent(F("var xhttpSPECIES = new XMLHttpRequest();"));
+  server.sendContent(F("xhttpSPECIES.onreadystatechange = function() {if (this.readyState == 4 && this.status == 200) {document.getElementById(\"species\").innerHTML = this.responseText;}};"));
+  server.sendContent(F("function getSpecies() {xhttpSPECIES.open(\"GET\", \"/getSpecies\", true); xhttpSPECIES.send();}"));
 
-  server.sendContent("var xhttpled = new XMLHttpRequest();");
-  server.sendContent("function ledOn() {xhttpled.open(\"GET\", \"/on\"); xhttpled.send();}");
-  server.sendContent("function ledOff() {xhttpled.open(\"GET\", \"/off\"); xhttpled.send();}");
+  server.sendContent(F("var xhttpled = new XMLHttpRequest();"));
+  server.sendContent(F("function ledOn() {xhttpled.open(\"GET\", \"/on\"); xhttpled.send();}"));
+  server.sendContent(F("function ledOff() {xhttpled.open(\"GET\", \"/off\"); xhttpled.send();}"));
 
-  server.sendContent("const slider = document.getElementById(\"controlSlider\");");
-  server.sendContent("const sliderVal = document.getElementById(\"sliderVal\");");
-  server.sendContent("const resetVal = 0;");
-  server.sendContent("slider.addEventListener(\"touchmove\", () => {sliderVal.textContent = slider.value; sendSliderValue(slider.value);});");
-  server.sendContent("slider.addEventListener(\"touchend\", () => {resetSlider();});");
+  server.sendContent(F("const slider = document.getElementById(\"controlSlider\");"));
+  server.sendContent(F("const sliderVal = document.getElementById(\"sliderVal\");"));
+  server.sendContent(F("const resetVal = 0;"));
+  server.sendContent(F("slider.addEventListener(\"touchmove\", () => {sliderVal.textContent = slider.value; sendSliderValue(slider.value);});"));
+  server.sendContent(F("slider.addEventListener(\"touchend\", () => {resetSlider();});"));
 
-  server.sendContent("var xhttpslidone = new XMLHttpRequest();");
-  server.sendContent("function sendSliderValue(value) {xhttpslidone.open(\"GET\", \`/slider?val=${value}\`, true); xhttpslidone.send();}");
-  server.sendContent("function resetSlider() {slider.value = resetVal; sliderVal.textContent = resetVal; sendSliderValue(0);}");
+  server.sendContent(F("var xhttpslidone = new XMLHttpRequest();"));
+  server.sendContent(F("function sendSliderValue(value) {xhttpslidone.open(\"GET\", `/slider?val=${value}`, true); xhttpslidone.send();}"));
+  server.sendContent(F("function resetSlider() {slider.value = resetVal; sliderVal.textContent = resetVal; sendSliderValue(0);}"));
 
-  server.sendContent("const slider2 = document.getElementById(\"controlSlider2\");");
-  server.sendContent("const sliderVal2 = document.getElementById(\"sliderVal2\");");
-  server.sendContent("const resetVal2 = 0;");
-  server.sendContent("slider2.addEventListener(\"touchmove\", () => {sliderVal2.textContent = slider2.value; sendSlider2Value(slider2.value);});");
-  server.sendContent("slider2.addEventListener(\"touchend\", () => {resetSlider2();});");
+  server.sendContent(F("const slider2 = document.getElementById(\"controlSlider2\");"));
+  server.sendContent(F("const sliderVal2 = document.getElementById(\"sliderVal2\");"));
+  server.sendContent(F("const resetVal2 = 0;"));
+  server.sendContent(F("slider2.addEventListener(\"touchmove\", () => {sliderVal2.textContent = slider2.value; sendSlider2Value(slider2.value);});"));
+  server.sendContent(F("slider2.addEventListener(\"touchend\", () => {resetSlider2();});"));
 
-  server.sendContent("var xhttpslidtwo = new XMLHttpRequest();");
-  server.sendContent("function sendSlider2Value(value) {xhttpslidtwo.open(\"GET\", \`/slider2?val=${value}\`, true); xhttpslidtwo.send();}");
-  server.sendContent("function resetSlider2() {slider2.value = resetVal2; sliderVal2.textContent = resetVal2; sendSlider2Value(0);}");
+  server.sendContent(F("var xhttpslidtwo = new XMLHttpRequest();"));
+  server.sendContent(F("function sendSlider2Value(value) {xhttpslidtwo.open(\"GET\", `/slider2?val=${value}`, true); xhttpslidtwo.send();}"));
+  server.sendContent(F("function resetSlider2() {slider2.value = resetVal2; sliderVal2.textContent = resetVal2; sendSlider2Value(0);}"));
 
-  server.sendContent("</script></body></html>");
+  server.sendContent(F("</script></body></html>"));
 }
 
 
@@ -291,7 +344,7 @@ void root() {
 void getName()
 {
   server.sendHeader("Access-Control-Allow-Origin", "*");
-  String name = "a";
+  findName();
   server.send(200, F("text/plain"), name);
 }
 
@@ -347,6 +400,7 @@ void setup() {
   pinMode(9, OUTPUT);
   pinMode(radio_ir_Pin, INPUT); 
   pinMode(infrared_ir_Pin, INPUT);
+
 
 
 
@@ -443,6 +497,12 @@ void setup() {
 void loop() {
   server.handleClient();
 
-
-
+  unsigned long now = millis();
+  if (now - lastReconnectAttempt > 5000) {  // try reconnect every 5 seconds
+    lastReconnectAttempt = now;
+      WiFi.disconnect();
+      WiFi.begin(ssid, pass);
+    }
 }
+
+
