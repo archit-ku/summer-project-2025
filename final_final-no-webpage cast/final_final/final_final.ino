@@ -75,7 +75,7 @@ int frequency_infrared = 0;
 
 // Magnetic sensor variables
 String magnet;
-int magnetic_threshold = 402;
+int magnetic_threshold = 440;
 
 void risingEdgeDetected_radio() {
   unsigned long now = micros();
@@ -175,17 +175,17 @@ void determine_species() {
   readMagneticSensor();
   calculateRadioFrequency();
   calculateInfraredFrequency();
-  String error = magnet + frequency_radio + frequency_infrared;
+  String error = "magnet: " + magnet +" radio frequency: " + frequency_radio +" ir frequency: " +frequency_infrared;
 
   if (magnet == "down") {
-    if (frequency_infrared == 457) {
-      species = "Wibbo";
-    } 
-    else if (frequency_radio == 100) {
+    if (frequency_radio == 100) {
       species = "Gribbit";
     } 
+    else if (frequency_infrared == 457) {
+      species = "Wibbo";
+    } 
     else {
-      species = error;
+      species = error + " Gribbit or Wibbo";
     }
   } 
   else if (magnet == "up") {
@@ -196,7 +196,7 @@ void determine_species() {
       species = "Zapple";
     } 
     else {
-      species = error;
+      species = error + " Snorkle or Zapple";
     }
   } 
   else {
@@ -204,55 +204,73 @@ void determine_species() {
   }
 }
 
-String readsingleName(){
-  String name;
+String readName(){
+  String reading;
+  String names[20];
+  int counts[20];
+  int totalNames = 0;
   char VA0;
-  //in loop, wait for #
-  if (Serial1.available()){
-    Serial.println("source detected");
-    while(true){
+  for(int i = 0; i < 80; i++){
+    if(Serial1.available()){
       VA0 = Serial1.read();
-
-      if(VA0 == '#'){
-        break;
-      }
-
-      //read char, add to string name
-      VA0 = Serial1.read();
-      while(VA0 != '#'){
-        name += VA0;
-      }
-
+      reading += VA0;
     }
-    //if char #, return name
-    return name;
+    delay(2);
   }
-  return "not found";
-}
+  
+  int i = 0;
+  while (i < reading.length()) {
+    
+    if (reading.charAt(i) == '#') {
+      int start = i + 1;
+      int end = start + 3;
+      if (end <= reading.length()) {
+        String name = reading.substring(start, end);
+        
+        //check all valid chars
+        bool valid = true;
+        for (int j = 0; j < 3; ++j) {
+          if (!isAlpha(name.charAt(j))) {
+            valid = false;
+            break;
+          }
+        }
 
-void findName(){
-  String names[75];
-  for(int i = 0; i < 75; i++){
-    names[i] = readsingleName();
-  }
-
-  String modeName = "";
-  int maxCount = 0;
-
-  for (int i = 0; i < 75; i++) {
-    int count = 1;
-    for (int j = i + 1; j < 75; j++) {
-      if (names[i] == names[j]) {
-        count++;
+        if (valid) {
+          bool found = false;
+          for (int j = 0; j < totalNames; ++j) {
+            if (names[j] == name) {
+              counts[j]++;
+              found = true;
+              break;
+            }
+          }
+          if (!found && totalNames < 20) {
+            names[totalNames] = name;
+            counts[totalNames] = 1;
+            totalNames++;
+          }
+        }
       }
     }
+    i++;
+  }
 
-    if (count > maxCount) {
-      maxCount = count;
-      modeName = names[i];
+  if (totalNames == 0) {
+    return "unknown";
+  }
+
+  //find modal name
+  int maxCount = counts[0];
+  String mostCommon = names[0];
+  for (int j = 1; j < totalNames; ++j) {
+    if (counts[j] > maxCount) {
+      maxCount = counts[j];
+      mostCommon = names[j];
     }
   }
-  name = modeName;
+
+  return mostCommon;
 }
 
 
@@ -275,7 +293,7 @@ void stop(){
 void getName()
 {
   server.sendHeader("Access-Control-Allow-Origin", "*");
-  findName();
+  name = readName();
   server.send(200, F("text/plain"), name);
 }
 
@@ -342,6 +360,7 @@ void setup() {
   digitalWrite(LED_BUILTIN, 0);
 
   Serial.begin(9600);
+  Serial1.begin(600);
 
   attachInterrupt(digitalPinToInterrupt(radio_ir_Pin), risingEdgeDetected_radio, RISING); 
   attachInterrupt(digitalPinToInterrupt(infrared_ir_Pin), risingEdgeDetected_infrared, RISING);
